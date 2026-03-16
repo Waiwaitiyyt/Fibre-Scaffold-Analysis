@@ -1,109 +1,164 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen
+import json
+from datetime import datetime
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen
 from PySide6.QtCore import Qt, QSize, QThread, Signal
-from PySide6.QtGui import QIcon, QPixmap, QMovie
-from ui.mainWindow import Ui_MainWindow   
-from ui.subUi import FactorDialog, AcceptValue, RejectValue, NoImgWarning, ProcessingDialog, JERDialog
-from ui.about import AboutDialog
+from PySide6.QtGui import QIcon, QPixmap
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+
+from ui.mainWindow import Ui_MainWindow
+from ui.subUi import NoImgWarning, ProcessingDialog
+from ui.about import AboutDialog
 import core.io as io
 from core import fibre_measure
 from core import pore_measure
 from core.render import fibre_result_visualise, pore_result_visualise
-import json
-from datetime import datetime
+
+
+# Default parameter values — used when data.json is missing keys
+DEFAULTS = {
+    "jer": 40,
+    "scale_factor": 1.25,
+    "rate": 0.5,
+    "msd": 50,
+    "sigma": 2.0,
+    "threshold": 0.15,
+    "img_path": "",
+    "mode": "f",
+}
+
+
+def _load_json(json_file: str) -> dict:
+    with open(json_file, "r") as f:
+        return json.load(f)
+
+
+def _save_json(json_file: str, data: dict) -> None:
+    with open(json_file, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def _ensure_defaults() -> None:
+    """Make sure data.json contains all required keys with default values."""
+    data = _load_json("config.json")
+    changed = False
+    for key, val in DEFAULTS.items():
+        if key not in data:
+            data[key] = val
+            changed = True
+    if changed:
+        _save_json("config.json", data)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowIcon(QIcon("icon.ico"))
         self.setWindowTitle("FibreScope")
-        self._connectSignals()
+
+        _ensure_defaults()
         self._canvaSet()
+        self._connectSignals()
+        self._loadSidebarFromJson()
 
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
+        data = _load_json("config.json")
         self.mode = data["mode"]
+        data["img_path"] = ""
+        _save_json("config.json", data)
 
-        data["imgPath"] = ""
-        with open("data.json", "w") as jsonFile:
-            json.dump(data, jsonFile, indent = 2)
-
+    # ------------------------------------------------------------------
+    # Signal wiring
+    # ------------------------------------------------------------------
     def _connectSignals(self):
         self.ui.actionOpen_Image.triggered.connect(io.selectImg)
         self.ui.actionExit.triggered.connect(self._closeWindow)
-        self.ui.actionChange_Scale_Factor.triggered.connect(self._factorDialog)
-        self.ui.actionChange_JER.triggered.connect(self._jerDialog)
         self.ui.actionFibre_Measure.triggered.connect(self._toggleFibreMode)
         self.ui.actionPore_Measure.triggered.connect(self._togglePoreMode)
         self.ui.actionRun_Analysis.triggered.connect(self._startAnalysis)
         self.ui.actionSave_Result.triggered.connect(self._saveResult)
         self.ui.actionAbout.triggered.connect(self._about)
+        self.ui.set_button.clicked.connect(self._setSidebarParams)
 
-    def _factorDialog(self):
-        dialog = FactorDialog(parent = self)
-        result = dialog.exec()
-        if result == QDialog.Accepted:
-            inputData = dialog.getResult()
-            newFactor = inputData["scaleFactor"]
+    # ------------------------------------------------------------------
+    # Sidebar: load from JSON → populate inputs
+    # ------------------------------------------------------------------
+    def _loadSidebarFromJson(self):
+        data = _load_json("config.json")
+        # Show current values as placeholder text so the field looks populated
+        # even if the user hasn't typed anything yet.
+        self.ui.jer_input.setText(str(data["jer"]))
+        self.ui.scale_input.setText(str(data["scale_factor"]))
+        self.ui.rate_input.setText(str(data["rate"]))
+        self.ui.msd_input.setText(str(data["msd"]))
+        self.ui.smoothing_input.setText(str(data["smoothing"]))
+        self.ui.threshold_input.setText(str(data["threshold"]))
+
+    # ------------------------------------------------------------------
+    # Sidebar: validate inputs → write to JSON
+    # ------------------------------------------------------------------
+    def _setSidebarParams(self):
+        fields = {
+            "jer": (self.ui.jer_input,         float, 1,    500),
+            "scale_factor": (self.ui.scale_input,       float, 0.01, 100),
+            "rate": (self.ui.rate_input,        float, 0.01, 1.0),
+            "msd": (self.ui.msd_input,         int,   5,    500),
+            "sigma": (self.ui.smoothing_input,   float, 0.5,  10),
+            "threshold": (self.ui.threshold_input,   float, 0.01, 1.0),
+        }
+
+        data = _load_json("config.json")
+        errors = []
+
+        for key, (widget, cast, lo, hi) in fields.items():
+            text = widget.text().strip()
+            if text == "":
+                # Empty → keep current value, no update needed
+                continue
             try:
-                newFactor = float(newFactor)
-                accept = AcceptValue(parent = self)
-                accept.exec()
-                with open("data.json", "r") as jsonFile:
-                    data = json.load(jsonFile)
-                data["scaleFactor"] = newFactor
-                with open("data.json", "w") as jsonFile:
-                    json.dump(data, jsonFile, indent = 2)
+                val = cast(text)
+                if not (lo <= val <= hi):
+                    raise ValueError(f"out of range [{lo}, {hi}]")
+                data[key] = val
+            except ValueError as e:
+                errors.append(f"{key}: {e}")
+                widget.setStyleSheet("border: 1px solid red;")
+                continue
+            widget.setStyleSheet("")  # Clear error highlight
 
-            except ValueError:
-                reject = RejectValue(parent = self)
-                reject.exec()
+        if errors:
+            # Report but still save whatever was valid
+            print("Parameter warnings:", errors)
+        else:
+            _save_json("config.json", data)
+            self._loadSidebarFromJson()   # Refresh displayed values
+            print("Parameters saved:", {k: data[k] for k in fields})
 
-    def _jerDialog(self):
-        dialog = JERDialog(parent = self)
-        result = dialog.exec()
-        if result == QDialog.Accepted:
-            inputData = dialog.getResult()
-            newFactor = inputData["JER"]
-            try:
-                newFactor = float(newFactor)
-                accept = AcceptValue(parent = self)
-                accept.exec()
-                with open("data.json", "r") as jsonFile:
-                    data = json.load(jsonFile)
-                data["JER"] = newFactor
-                with open("data.json", "w") as jsonFile:
-                    json.dump(data, jsonFile, indent = 2)
+        _save_json("config.json", data)
 
-            except ValueError:
-                reject = RejectValue(parent = self)
-                reject.exec()
-
+    # ------------------------------------------------------------------
+    # Mode toggles
+    # ------------------------------------------------------------------
     def _toggleFibreMode(self):
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
+        data = _load_json("config.json")
         data["mode"] = "f"
-        with open("data.json", "w") as jsonFile:
-            json.dump(data, jsonFile, indent = 2)
+        _save_json("config.json", data)
         self.setWindowTitle("FibreScope - fibre mode")
-                
 
     def _togglePoreMode(self):
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
+        data = _load_json("config.json")
         data["mode"] = "p"
-        with open("data.json", "w") as jsonFile:
-            json.dump(data, jsonFile, indent = 2)
+        _save_json("config.json", data)
         self.setWindowTitle("FibreScope - pore mode")
 
+    # ------------------------------------------------------------------
+    # Canvas
+    # ------------------------------------------------------------------
     def _canvaSet(self):
-        self.fig = Figure() 
+        self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         layout = self.ui.resultFrame.layout()
         if layout is None:
@@ -111,6 +166,9 @@ class MainWindow(QMainWindow):
             self.ui.resultFrame.setLayout(layout)
         layout.addWidget(self.canvas)
 
+    # ------------------------------------------------------------------
+    # Analysis
+    # ------------------------------------------------------------------
     def _startAnalysis(self):
         self.processing = ProcessingDialog(self)
         self.processing.show()
@@ -125,130 +183,134 @@ class MainWindow(QMainWindow):
         self.worker.deleteLater()
 
     def _computeAnalysis(self):
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
-        imgPath = data["imgPath"]
+        data = _load_json("config.json")
+        img_path = data["img_path"]
         mode = data["mode"]
         self.fig.clear()
-        if imgPath != "":
-            if mode == "f": 
-                jer_value = data["JER"]
-                scale = data["scaleFactor"]
-                return fibre_measure.measure(imgPath, jer = jer_value, scale_factor = scale)
-            if mode == "p":
-                return pore_measure.measure(imgPath)
-        else:
-            imgWarning = NoImgWarning(parent = self)
-            imgWarning.exec()
+
+        if img_path == "":
+            NoImgWarning(parent=self).exec()
+            return None
+
+        if mode == "f":
+            return fibre_measure.measure(
+                img_path,
+                sample_rate=data["rate"],
+                max_search_distance=int(data["msd"]),
+                min_distance_hard=5,
+                jer=data["jer"],
+                sigma=data["sigma"],
+                scale_factor=data["scale_factor"],
+                threshold=data["threshold"],
+            )
+
+        if mode == "p":
+            return pore_measure.measure(img_path)
+
+        return None
 
     def _renderResults(self, result):
         if result is None:
             NoImgWarning(parent=self).exec()
             return
+
         self.fig.clear()
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
+        data = _load_json("config.json")
+
         if data["mode"] == "f":
-            true_diameters, pairs, edge_mask = result
+            true_diameters, pairs, edge_mask, fibre_dict = result
             fibre_result_visualise(
                 true_diameters,
-                data["imgPath"],
+                data["img_path"],
                 pairs,
                 edge_mask,
-                fig=self.fig
+                fig=self.fig,
             )
+            result_data = _load_json("data.json")
+            result_data["Fibre Param"] = fibre_dict
+            _save_json("data.json", result_data)
         else:
             area_arr, circularity_arr, solidity_arr, img_path = result
             pore_result_visualise(
-                area_arr,
-                circularity_arr,
-                solidity_arr,
-                img_path,
-                fig = self.fig
+                area_arr, circularity_arr, solidity_arr, img_path, fig=self.fig
             )
-        self.canvas.draw()        
-        self._showResult()        
+
+        self.canvas.draw()
+        self._showResult()
 
     def _showResult(self):
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
-        if data["mode"] == "f":
-            modeSetting = "Fibre Param"
-        elif data["mode"] == "p":
-            modeSetting = "Pores Param"
+        config = _load_json("config.json")
+        data = _load_json("data.json")
+        mode_key = "Fibre Param" if config["mode"] == "f" else "Pores Param"
+        p = data[mode_key]
 
-        average = QTableWidgetItem(str(round(data[modeSetting]["Average"], 4)))
-        stdev = QTableWidgetItem(str(round(data[modeSetting]["Standard Deviation"], 4)))
-        kde_peak = QTableWidgetItem(str(round(data[modeSetting]["KDE Peak"], 4)))
-        sem = QTableWidgetItem(str(round(data[modeSetting]["SEM"], 4)))
-        median = QTableWidgetItem(str(round(data[modeSetting]["median"], 4)))
-        q1, q3 = round(data[modeSetting]["Q1, Q3"][0], 4), round(data[modeSetting]["Q1, Q3"][1], 4)
-        q1q3 = QTableWidgetItem(f"{q1}, {q3}")
-        iqr = QTableWidgetItem(str(round(data[modeSetting]["IQR"], 4)))
-        ciLow, ciHigh = round(data[modeSetting]["95% CI"][0], 4), round(data[modeSetting]["95% CI"][1], 4)
-        ci95 = QTableWidgetItem(f"{ciLow}, {ciHigh}")
-        jerAndFactor = round(data["JER"]), data["scaleFactor"]
-        kernel = QTableWidgetItem(f"{jerAndFactor}")
+        def item(val):
+            i = QTableWidgetItem(str(round(val, 4)))
+            i.setTextAlignment(Qt.AlignCenter)  # type: ignore
+            return i
 
-        average.setTextAlignment(Qt.AlignCenter)    # type: ignore
-        stdev.setTextAlignment(Qt.AlignCenter)  # type: ignore
-        kde_peak.setTextAlignment(Qt.AlignCenter)   # type: ignore
-        sem.setTextAlignment(Qt.AlignCenter)    # type: ignore
-        median.setTextAlignment(Qt.AlignCenter) # type: ignore
-        q1q3.setTextAlignment(Qt.AlignCenter)   # type: ignore
-        iqr.setTextAlignment(Qt.AlignCenter)    # type: ignore
-        ci95.setTextAlignment(Qt.AlignCenter)   # type: ignore
-        kernel.setTextAlignment(Qt.AlignCenter) # type: ignore
+        q1, q3 = round(p["Q1, Q3"][0], 4), round(p["Q1, Q3"][1], 4)
+        ci_lo, ci_hi = round(p["95% CI"][0], 4), round(p["95% CI"][1], 4)
 
-        self.ui.tableWidget.setItem(0, 0, average)
-        self.ui.tableWidget.setItem(0, 1, stdev)
-        self.ui.tableWidget.setItem(0, 2, kde_peak)
-        self.ui.tableWidget.setItem(0, 3, sem)
-        self.ui.tableWidget.setItem(0, 4, median)
-        self.ui.tableWidget.setItem(0, 5, q1q3)
-        self.ui.tableWidget.setItem(0, 6, iqr)
-        self.ui.tableWidget.setItem(0, 7, ci95)
-        self.ui.tableWidget.setItem(0, 8, kernel)
+        q1q3_item = QTableWidgetItem(f"{q1}, {q3}")
+        q1q3_item.setTextAlignment(Qt.AlignCenter)  # type: ignore
+        ci_item = QTableWidgetItem(f"{ci_lo}, {ci_hi}")
+        ci_item.setTextAlignment(Qt.AlignCenter)  # type: ignore
+        jer_item = QTableWidgetItem(str(round(config["jer"])))
+        jer_item.setTextAlignment(Qt.AlignCenter)  # type: ignore
 
+        self.ui.tableWidget.setItem(0, 0, item(p["Average"]))
+        self.ui.tableWidget.setItem(0, 1, item(p["Standard Deviation"]))
+        self.ui.tableWidget.setItem(0, 2, item(p["KDE Peak"]))
+        self.ui.tableWidget.setItem(0, 3, item(p["SEM"]))
+        self.ui.tableWidget.setItem(0, 4, item(p["median"]))
+        self.ui.tableWidget.setItem(0, 5, q1q3_item)
+        self.ui.tableWidget.setItem(0, 6, item(p["IQR"]))
+        self.ui.tableWidget.setItem(0, 7, ci_item)
+        self.ui.tableWidget.setItem(0, 8, jer_item)
+
+    # ------------------------------------------------------------------
+    # Save / About / Close
+    # ------------------------------------------------------------------
     def _saveResult(self):
         now = datetime.now()
-        year = now.year
-        month = now.month
-        day = now.day
-        hour = now.hour
-        minute = now.minute
-        second = now.second
-        self.fig.savefig(f"{year}_{month}_{day}_{hour}_{minute}_{second}.png")
-        print("Result saved!")
+        filename = now.strftime("%Y_%m_%d_%H_%M_%S.png")
+        self.fig.savefig(filename)
+        print(f"Result saved: {filename}")
 
     def _about(self):
-        about = AboutDialog(parent = self)
-        about.exec()
+        AboutDialog(parent=self).exec()
 
     def _closeWindow(self):
+        data = _load_json("config.json")
+        data["img_path"] = ""
+        _save_json("config.json", data)
         QApplication.quit()
-        with open("data.json", "r") as jsonFile:
-            data = json.load(jsonFile)
-        data["imgPath"] = ""
-        with open("data.json", "w") as jsonFile:
-            json.dump(data, jsonFile, indent = 2)
 
+
+# ----------------------------------------------------------------------
+# Worker thread
+# ----------------------------------------------------------------------
 class AnalysisWorker(QThread):
-    resultReady  = Signal(object)
+    resultReady = Signal(object)
 
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
 
     def run(self):
-        results = self.main_window._computeAnalysis()
-        self.resultReady.emit(results)
+        result = self.main_window._computeAnalysis()
+        self.resultReady.emit(result)
 
+
+# ----------------------------------------------------------------------
+# Entry point
+# ----------------------------------------------------------------------
 def main():
     app = QApplication(sys.argv)
     splash = QSplashScreen(
         QPixmap("src/python/media/Splash2.png"),
-        Qt.WindowStaysOnTopHint # type: ignore
+        Qt.WindowStaysOnTopHint,  # type: ignore
     )
     splash.show()
     app.processEvents()
@@ -256,6 +318,7 @@ def main():
     window.show()
     splash.finish(window)
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

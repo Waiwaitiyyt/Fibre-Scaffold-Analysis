@@ -14,7 +14,7 @@ from skimage.morphology import skeletonize, medial_axis, remove_small_objects
 from skimage import img_as_float # type: ignore
 from skimage.feature import hessian_matrix, hessian_matrix_eigvals
 from scipy.ndimage import distance_transform_edt
-import measure_tool 
+import measure_tool # type: ignore
 import warnings
 import json
 from typing import Tuple
@@ -273,8 +273,10 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
             end_x = int(x0 + direction * nx * max_search_distance)
             end_y = max(0, min(h-1, end_y))
             end_x = max(0, min(w-1, end_x))
-            line_points = measure_tool.bresenham_line(y0, x0, end_y, end_x)
-            # line_points = bresenham_line(y0, x0, end_y, end_x)
+            try:
+                line_points = measure_tool.bresenham_line(y0, x0, end_y, end_x)
+            except:
+                line_points = bresenham_line(y0, x0, end_y, end_x)
             for i, (py, px) in enumerate(line_points):
                 if i < min_distance_hard:
                     continue
@@ -311,9 +313,9 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
     # plt.show()
     return edge_pairs, distances
 
-def result_analyse(diameter_arr: np.ndarray) -> None:
+def result_analyse(diameter_arr: np.ndarray) -> dict:
     '''
-    Void function for result analysis and write data into json file
+    Return the analysis result
     
     :param diameterList:
     :type diameterList: list
@@ -332,9 +334,6 @@ def result_analyse(diameter_arr: np.ndarray) -> None:
     boot = np.random.choice(diameter_arr, (10000, len(diameter_arr)), replace=True)
     ciLow, ciHigh = np.percentile(np.median(boot, axis=1), [2.5, 97.5])
 
-    with open("data.json", "r") as jsonFile:
-        data = json.load(jsonFile)
-
     fibre_dict = {"Average": average,
                  "Standard Deviation": stdev,
                  "KDE Peak": fibrePeak,
@@ -345,12 +344,19 @@ def result_analyse(diameter_arr: np.ndarray) -> None:
                  "95% CI": (ciLow, ciHigh),
                  "Raw": diameter_arr.tolist()
                  }
+    
+    return fibre_dict
 
-    data["Fibre Param"] = fibre_dict
-    with open("data.json", "w") as jsonFile:
-        json.dump(data, jsonFile, indent = 2)
 
-def measure(img_path: str, sample_rate: float = 0.2, max_search_distance: int = 50, min_distance_hard: int= 5, jer: int = 40, scale_factor: float = 1.25) -> Tuple[np.ndarray, list, np.ndarray]:
+
+def measure(img_path: str, 
+            sample_rate: float = 0.5, 
+            max_search_distance: int = 50, 
+            min_distance_hard: int= 5, 
+            jer: int = 40, 
+            scale_factor: float = 1.25, 
+            sigma: int = 2, 
+            threshold: float = 0.15) -> Tuple[np.ndarray, list, np.ndarray, dict]:
     '''
     Perform measurement for fibres
     
@@ -381,16 +387,16 @@ def measure(img_path: str, sample_rate: float = 0.2, max_search_distance: int = 
     :return: True diameter array, point pairs and ridge mask
     :rtype: Tuple[ndarray[Any, Any], list[Any], ndarray[Any, Any]]
     '''
-    edge_mask = ridge_enhancement(img_path)
+    edge_mask = ridge_enhancement(img_path, sigma, threshold)
     pairs, distances = measure_edge_pair_distances_final(edge_mask, sample_rate, max_search_distance, min_distance_hard, jer)
     distances *= scale_factor
-    result_analyse(distances)
-    return distances, pairs, edge_mask
+    fibre_dict = result_analyse(distances)
+    return distances, pairs, edge_mask, fibre_dict
 
 
 if __name__ == "__main__":
     img_path = r"C:\Users\EnDes\Desktop\Untitled.png"
-    distances, pairs, edge_mask= measure(img_path, jer = 50)
+    distances, pairs, edge_mask, fibre_dict = measure(img_path, jer = 50)
     print(np.mean(distances))
 
     gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
