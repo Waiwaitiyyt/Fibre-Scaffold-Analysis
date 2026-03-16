@@ -1,6 +1,8 @@
 2025/12/17: Finished major UI designing, frontend - backend connection under development
 2025/12/19: Finished v0.1 development
 2026/01/12: Added junction exclusion radius adjustment function
-2026/01/14: Fix some mophological bus
+2026/01/14: Fix some mophological bugs
 2026/02/09: Finished version 0.3 development, abandoned deep learning medthod and adopted traditional CV medthod
 2026/02/22: Update the fibre measurement algorithm, replaced sobel methos with local PCA method
+2026/03/15: Update image processing part
+2026/03/16: Added a parameter control sidebar and fixed some bugs
