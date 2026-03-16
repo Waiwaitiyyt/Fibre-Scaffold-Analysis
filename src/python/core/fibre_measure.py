@@ -16,7 +16,6 @@ from skimage.feature import hessian_matrix, hessian_matrix_eigvals
 from scipy.ndimage import distance_transform_edt
 import measure_tool # type: ignore
 import warnings
-import json
 from typing import Tuple
 warnings.filterwarnings('ignore')
 

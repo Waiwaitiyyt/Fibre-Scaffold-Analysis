@@ -5,9 +5,6 @@ from skimage.feature import hessian_matrix, hessian_matrix_eigvals
 from skimage.morphology import remove_small_objects
 from skimage.measure import label
 from scipy.stats import sem, gaussian_kde
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 from typing import List, Tuple
 import json
 
