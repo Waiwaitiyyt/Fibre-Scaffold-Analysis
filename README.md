@@ -1,78 +1,75 @@
-<h1> 
-    FibreScope - Fibre Scaffold Analysis Software 
-</h1>
+# FibreScope - Fibre Scaffold Analysis Software
 
-<p> 
-    Scaffold analysis software designed for fibre diameter and fibre pore size measurement based on traditional CV solution.
-    Fibre diameter is measured via continous sampling along normal direction of fibre edge.
-    The input image will be processed and binarilised for diameter and area measurement.
-    All measurement results are originally in pixel and needed to be converted to real life length.
-    This project is still under active development and will be updated in near future.
-</p>
+Scaffold analysis software designed for fibre diameter and pore size measurement based on traditional CV solutions. Fibre diameter is measured via continuous sampling along the normal direction of fibre edges, using a per-sample edge-pairing method that combines skeleton-to-skeleton distance (d2) and skeleton-to-edge-boundary distance (d1) to reconstruct the true fibre diameter. Input images are processed and binarised for diameter and area measurement. All results are originally in pixels and need to be converted to real-world length units via the scale factor.
 
-<h2> 
-    Example
-</h2>
+> This project is still under active development and will be updated in the near future.
 
-<p>
-    An example of fibre diameter measurement result.
-</p>
+## Example
+
+Fibre diameter measurement result:
 
 ![Fibre Diameter Measurement Demo](demo/fibreDemo.png)
 
-<p>
-    An example of pore size measurement result.
-</p>
+Pore size measurement result:
 
 ![Pore Size Measurement Demo](demo/poreDemo.png)
 
-<h2>
-    Usage
-</h2>
-<p>
-    <ul>
-        <li>Import image via <code>File - Open Image</code> or using shortkey <code>Ctrl + I</code>. </l1>
-        <li>Choose analysis mode under <code>Options</code> from <code>Fibre Measure</code> or <code>Pore Measure</code>.</li>
-        <li>Run analysis under <code>Run</code> or using shortket <code>F5</code>.</li>
-        <li>Save result as image via <code>File - Save Result</code> or using shortkey <code>Ctrl + S</code>.</li>
-    </ul>
-    <h3>
-        About parameters
-    </h3>
-    <p>
-        <ul>
-            <li>Scale Factor: the scale ratio between pixel to real length, needs to be measured depends on instrument setting up.</li>
-            <li>Junction Exclusion Radius (JER): set the area where the measurement wouldn't be taken near fibre junctions and intersections for better measurements.</li>
-        </ul>
-    </p>
-        
+## Usage
 
-<p>
+1. Import an image via **File → Open Image** or `Ctrl + I`.
+2. Choose an analysis mode under **Options**: `Fibre Measure` or `Pore Measure`.
+3. Adjust parameters in the sidebar if needed, then click **Set** to apply.
+4. Run analysis via **Run** or `F5`.
+5. Save the result image via **File → Save Result** or `Ctrl + S`.
 
+### Build
+```bash
+mkdir build
+cd build
+cmake ..
+```
 
+### Parameters
 
-<p> 
-    The cores are also supported to be imported and used. The core for diameter measurement and size measurement are <code>fibreMeasure.py</code> and <code>poresMeasure.py</code> under <code>core/fibreCore</code> and <code>core/poreCore</code>.
-    Example codes for each module are shown below.
-</p>
+All parameters can be adjusted in the sidebar and are persisted across sessions.
 
-<h3> 
-    Diameter Measurement
-</h3>
+| Parameter | Default | Description |
+|---|---|---|
+| **Scale Factor** | 1.25 | Pixel-to-real-length ratio; depends on instrument setup. |
+| **JER** | 40 | Junction Exclusion Radius — exclusion zone around fibre junctions and intersections to improve measurement accuracy. |
+| **Rate** | 0.5 | Sampling rate relative to total skeleton points. 0.1 = fast, 1.0 = full. |
+| **MSD** | 50 | Maximum Search Distance along the normal direction in pixels. Recommended: 1.5–2× expected fibre diameter. |
+| **Smoothing** | 2.0 | Gaussian sigma used in Hessian ridge enhancement. |
+| **Threshold** | 0.15 | Normalised response threshold for ridge mask extraction. |
 
-    from fibre_measure import measure
-    import numpy as np
+## API Usage
 
-    true_diameters, pairs, edge_mask = measure(r"example/image")
-    average_diameter = np.average(true_diameters)
+The core modules can be imported directly from `core/`.
 
-<h3> 
-    Pore Size Measurement 
-</h3>
+### Diameter Measurement
 
-    from pore_measure import measure
-    import numpy as np
+```python
+from fibre_measure import measure
+import numpy as np
 
-    area_arr, circularity_arr, solidity_arr, img_path = measure(r"example/image")
-    average_area = np.average(area_arr)
-    
+true_diameters, pairs, edge_mask, fibre_dict = measure(
+    r"example/image",
+    sample_rate=0.5,
+    max_search_distance=50,
+    jer=40,
+    scale_factor=1.25,
+    sigma=2,
+    threshold=0.15,
+)
+average_diameter = np.average(true_diameters)
+```
+
+### Pore Size Measurement
+
+```python
+from pore_measure import measure
+import numpy as np
+
+area_arr, circularity_arr, solidity_arr, img_path = measure(r"example/image")
+average_area = np.average(area_arr)
+```
