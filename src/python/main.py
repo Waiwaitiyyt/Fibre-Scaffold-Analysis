@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         self.ui.actionExit.triggered.connect(self._closeWindow)
         self.ui.actionFibre_Measure.triggered.connect(self._toggleFibreMode)
         self.ui.actionPore_Measure.triggered.connect(self._togglePoreMode)
-        self.ui.actionRun_Analysis.triggered.connect(self._startAnalysis)
+        self.ui.actionRun_Analysis.triggered.connect(self._start_analysis)
         self.ui.actionSave_Result.triggered.connect(self._save_result)
         self.ui.actionAbout.triggered.connect(self._about)
         self.ui.set_button.clicked.connect(self._setSidebarParams)
@@ -171,20 +171,20 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Analysis
     # ------------------------------------------------------------------
-    def _startAnalysis(self):
+    def _start_analysis(self):
         self.processing = ProcessingDialog(self)
         self.processing.show()
         QApplication.processEvents()
         self.worker = AnalysisWorker(self)
-        self.worker.resultReady.connect(self._renderResults)
-        self.worker.finished.connect(self._finishAnalysis)
+        self.worker.resultReady.connect(self._render_results)
+        self.worker.finished.connect(self._finish_analysis)
         self.worker.start()
 
-    def _finishAnalysis(self):
+    def _finish_analysis(self):
         self.processing.close()
         self.worker.deleteLater()
 
-    def _computeAnalysis(self):
+    def _compute_analysis(self):
         data = _load_json("config.json")
         img_path = data["img_path"]
         mode = data["mode"]
@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
 
         return None
 
-    def _renderResults(self, result):
+    def _render_results(self, result):
         if result is None:
             NoImgWarning(parent=self).exec()
             return
@@ -224,6 +224,7 @@ class MainWindow(QMainWindow):
 
         if data["mode"] == "f":
             true_diameters, pairs, edge_mask, fibre_dict = result
+            self._last_pairs = pairs   
             fibre_result_visualise(
                 true_diameters,
                 data["img_path"],
@@ -244,9 +245,9 @@ class MainWindow(QMainWindow):
             _save_json("data.json", result_data)
 
         self.canvas.draw()
-        self._showResult()
+        self._show_result()
 
-    def _showResult(self):
+    def _show_result(self):
         config = _load_json("config.json")
         data = _load_json("data.json")
         mode_key = "Fibre Param" if config["mode"] == "f" else "Pores Param"
@@ -290,6 +291,13 @@ class MainWindow(QMainWindow):
 
         # Save result image
         self.fig.savefig(folder / f"{timestamp}.png")
+        if config["mode"] == "f" and hasattr(self, '_last_pairs'):
+            from core.render import save_measurement_overlay
+            save_measurement_overlay(
+                config["img_path"],
+                self._last_pairs,
+                str(folder / f"{timestamp}_overlay.png")
+            )
 
         # Save Raw data as CSV
         try:
@@ -326,7 +334,7 @@ class AnalysisWorker(QThread):
         self.main_window = main_window
 
     def run(self):
-        result = self.main_window._computeAnalysis()
+        result = self.main_window._compute_analysis()
         self.resultReady.emit(result)
 
 

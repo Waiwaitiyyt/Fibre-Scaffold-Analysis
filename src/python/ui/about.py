@@ -69,6 +69,6 @@ class AboutDialog(QDialog):
     def retranslateUi(self, Dialog): 
         Dialog.setWindowTitle(QCoreApplication.translate("About", u"About FibreScope", None)) 
         self.label.setText(QCoreApplication.translate("About", u"FibreScope", None))
-        self.label_2.setText(QCoreApplication.translate("About", u"Version:     0.3.3", None))
+        self.label_2.setText(QCoreApplication.translate("About", u"Version:     0.3.2", None))
         self.label_3.setText(QCoreApplication.translate("About", u"Author: Yangtian Yan", None))
         self.label_4.setText(QCoreApplication.translate("About", u"Directed by: Alexander van Hoek", None))

@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import seaborn as sns
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list, edge_mask: np.ndarray, fig: Figure | None = None) -> Figure:
     if fig is None:
@@ -107,3 +108,16 @@ def pore_result_visualise(area_arr: np.ndarray, circularity_arr: np.ndarray, sol
     )
 
     return fig
+
+def save_measurement_overlay(img_path: str, pairs: list, save_path: str) -> None:
+    """Save the grayscale image with measurement lines as a standalone file."""
+    gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.imshow(gray_img, cmap='gray') # type: ignore
+    ax.axis('off')
+    show_n = min(1000, len(pairs))
+    for i in range(0, show_n, 3):
+        (y1, x1), (y2, x2), dist = pairs[i]
+        ax.plot([x1, x2], [y1, y2], color='red', linewidth=1, alpha=0.6)
+    fig.savefig(save_path, bbox_inches='tight', pad_inches=0)
+    plt.close(fig)
