@@ -1,10 +1,10 @@
 {
-  "img_path": "E:/CoraMetix/Fibre Diameter Measurement/sample/11.02.02_10x(centre).JPG",
+  "img_path": "",
   "mode": "f",
   "scale_factor": 1.0,
   "jer": 30.0,
   "rate": 0.5,
-  "msd": 20,
+  "msd": 30,
   "smoothing": 2,
   "threshold": 0.15,
   "sigma": 2.0

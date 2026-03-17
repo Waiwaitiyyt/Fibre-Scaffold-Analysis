@@ -1,7 +1,9 @@
 import sys
+import os
+import csv
 import json
 from datetime import datetime
-
+from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen
 from PySide6.QtCore import Qt, QSize, QThread, Signal
 from PySide6.QtGui import QIcon, QPixmap
@@ -79,7 +81,7 @@ class MainWindow(QMainWindow):
         self.ui.actionFibre_Measure.triggered.connect(self._toggleFibreMode)
         self.ui.actionPore_Measure.triggered.connect(self._togglePoreMode)
         self.ui.actionRun_Analysis.triggered.connect(self._startAnalysis)
-        self.ui.actionSave_Result.triggered.connect(self._saveResult)
+        self.ui.actionSave_Result.triggered.connect(self._save_result)
         self.ui.actionAbout.triggered.connect(self._about)
         self.ui.set_button.clicked.connect(self._setSidebarParams)
 
@@ -205,7 +207,10 @@ class MainWindow(QMainWindow):
             )
 
         if mode == "p":
-            return pore_measure.measure(img_path)
+            return pore_measure.measure(
+                img_path,
+                scale_factor=data["scale_factor"]
+            )
 
         return None
 
@@ -230,10 +235,13 @@ class MainWindow(QMainWindow):
             result_data["Fibre Param"] = fibre_dict
             _save_json("data.json", result_data)
         else:
-            area_arr, circularity_arr, solidity_arr, img_path = result
+            area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict = result
             pore_result_visualise(
-                area_arr, circularity_arr, solidity_arr, img_path, fig=self.fig
+                area_arr, circularity_arr, solidity_arr, measured_contour, fig=self.fig
             )
+            result_data = _load_json("data.json")
+            result_data["Pores Param"] = pore_dict
+            _save_json("data.json", result_data)
 
         self.canvas.draw()
         self._showResult()
@@ -272,11 +280,30 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Save / About / Close
     # ------------------------------------------------------------------
-    def _saveResult(self):
-        now = datetime.now()
-        filename = now.strftime("%Y_%m_%d_%H_%M_%S.png")
-        self.fig.savefig(filename)
-        print(f"Result saved: {filename}")
+    def _save_result(self):
+        config = _load_json("config.json")
+        mode_key = "Fibre Param" if config["mode"] == "f" else "Pores Param"
+
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        folder = Path(timestamp)
+        folder.mkdir(exist_ok=True)
+
+        # Save result image
+        self.fig.savefig(folder / f"{timestamp}.png")
+
+        # Save Raw data as CSV
+        try:
+            result_data = _load_json("data.json")
+            raw = result_data[mode_key]["Raw"]
+            col_name = "diameter_px" if config["mode"] == "f" else "area_px"
+            with open(folder / f"{timestamp}_raw.csv", "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([col_name])
+                writer.writerows([[v] for v in raw])
+        except (KeyError, FileNotFoundError) as e:
+            print(f"CSV export skipped: {e}")
+
+        print(f"Result saved to: {folder}/")
 
     def _about(self):
         AboutDialog(parent=self).exec()

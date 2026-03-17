@@ -20,7 +20,6 @@ def selectImg():
     ]
     filename = filedialog.askopenfilename(
         title="Open a file",
-        initialdir="/",
         filetypes=filetypes,
     )
     if filename:

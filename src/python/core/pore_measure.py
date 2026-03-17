@@ -2,11 +2,8 @@ import numpy as np
 import cv2
 from skimage import img_as_float # type: ignore 
 from skimage.feature import hessian_matrix, hessian_matrix_eigvals
-from skimage.morphology import remove_small_objects
-from skimage.measure import label
 from scipy.stats import sem, gaussian_kde
-from typing import List, Tuple
-import json
+from typing import Tuple
 
 def ridge_enhancement(img_path: str) -> np.ndarray:
     '''
@@ -30,7 +27,7 @@ def ridge_enhancement(img_path: str) -> np.ndarray:
     mask = (norm > 0.15).astype(np.uint8) * 255
     return mask
 
-def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     '''
     Extract contours area from contour mask and return the area array 
     
@@ -40,6 +37,12 @@ def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, n
     :rtype: ndarray[Any, Any]
     '''
     contours, _ = cv2.findContours(contour_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    canva = np.zeros_like(contour_mask)
+    cv2.drawContours(canva, contours, -1, (255, 255, 255), 1)
+    cv2.cvtColor(canva, cv2.COLOR_GRAY2BGR)
+
+
+
     area_list = []
     circularity_list = []
     solidity_list = []
@@ -56,15 +59,19 @@ def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, n
         area_list.append(area)
         circularity_list.append(circularity)
         solidity_list.append(solidity)
+        cv2.drawContours(canva, [contour], -1, (0, 0, 255), 2)
     area_arr = np.asarray(sorted([area for area in area_list if area < 1])[:-5]).ravel()
     circularity_arr = np.asarray(sorted(circularity_list)[:-1]).ravel()
     solidity_arr = np.asarray(sorted(solidity_list)[:-1]).ravel()
 
-    return area_arr, circularity_arr, solidity_arr
+    cv2.imshow('a', canva)
+    cv2.waitKey(0)
+
+    return area_arr, circularity_arr, solidity_arr, canva
     
 
 
-def resultAnalyse(area_arr: np.ndarray) -> None:
+def result_analyse(area_arr: np.ndarray) -> dict:
     '''
     Void function for result analysis and write data into json file
     
@@ -85,9 +92,6 @@ def resultAnalyse(area_arr: np.ndarray) -> None:
     boot = np.random.choice(area_arr, (10000, len(area_arr)), replace=True)
     ciLow, ciHigh = np.percentile(np.median(boot, axis=1), [2.5, 97.5])
 
-    with open("data.json", "r") as jsonFile:
-        data = json.load(jsonFile)
-
     pore_dict = {"Average": average,
                  "Standard Deviation": stdev,
                  "KDE Peak": porePeak,
@@ -98,13 +102,11 @@ def resultAnalyse(area_arr: np.ndarray) -> None:
                  "95% CI": (ciLow, ciHigh),
                  "Raw": area_arr.tolist()
                  }
-
-    data["Pores Param"] = pore_dict
-    with open("data.json", "w") as jsonFile:
-        json.dump(data, jsonFile, indent = 2)
+    
+    return pore_dict
 
 
-def measure(img_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+def measure(img_path: str, scale_factor: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
     '''
     Perform measurement for pores
     
@@ -114,12 +116,11 @@ def measure(img_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, str]:
     :rtype: Tuple[ndarray[Any, Any], ndarray[Any, Any], ndarray[Any, Any], str]
     '''
     contour_mask = ridge_enhancement(img_path)
-    area_arr_pixel, circularity_arr, solidity_arr = measure_contour(contour_mask)
-    with open("data.json", "r") as jsonFile:
-        data = json.load(jsonFile)
-    scaleFactor = data["scaleFactor"]
-    area_arr = area_arr_pixel * (scaleFactor ** 2)
-    resultAnalyse(area_arr)
-    return area_arr, circularity_arr, solidity_arr, img_path
+    area_arr_pixel, circularity_arr, solidity_arr, measured_contour = measure_contour(contour_mask)
+    area_arr = area_arr_pixel * (scale_factor ** 2)
+    pore_dict = result_analyse(area_arr)
+    return area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict
 
-   
+if __name__ == "__main__":
+    img_path = r"E:\CoraMetix\Fibre Diameter Measurement\sample\11.02.02_10x(centre).JPG"
+    area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict = measure(img_path, scale_factor=1.25)
