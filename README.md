@@ -27,6 +27,7 @@ Pore size measurement result:
 mkdir build
 cd build
 cmake ..
+cmake --build . --config Release
 ```
 
 ### Parameters
