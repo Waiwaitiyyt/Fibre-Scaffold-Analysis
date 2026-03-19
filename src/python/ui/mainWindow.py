@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'main.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.1
+## Created by: Qt User Interface Compiler version 6.10.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -178,7 +178,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1260, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1260, 23))
         self.menuFibre_Diameter_Measurement = QMenu(self.menubar)
         self.menuFibre_Diameter_Measurement.setObjectName(u"menuFibre_Diameter_Measurement")
         self.menuRun = QMenu(self.menubar)
@@ -274,7 +274,7 @@ class Ui_MainWindow(object):
 
         self.jer_input.setText("")
         self.jer_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"40", None))
-        self.parameters.setText(QCoreApplication.translate("MainWindow", u"Parameters Settings", None))
+        self.parameters.setText(QCoreApplication.translate("MainWindow", u"Settings", None))
         self.jer_label.setText(QCoreApplication.translate("MainWindow", u"JER", None))
         self.scale_label.setText(QCoreApplication.translate("MainWindow", u"Scale", None))
         self.scale_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"1.25", None))
@@ -282,7 +282,7 @@ class Ui_MainWindow(object):
         self.rate_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"0.5", None))
         self.msd_label.setText(QCoreApplication.translate("MainWindow", u"MSD", None))
         self.msd_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"50", None))
-        self.smoothing_label.setText(QCoreApplication.translate("MainWindow", u"Smoothing", None))
+        self.smoothing_label.setText(QCoreApplication.translate("MainWindow", u"Smooth", None))
         self.smoothing_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"2", None))
         self.threshold_label.setText(QCoreApplication.translate("MainWindow", u"Threshold", None))
         self.threshold_input.setPlaceholderText(QCoreApplication.translate("MainWindow", u"0.15", None))

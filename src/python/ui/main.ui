@@ -245,7 +245,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>Parameters Settings</string>
+      <string>Settings</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -364,7 +364,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>Smoothing</string>
+      <string>Smooth</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -433,7 +433,7 @@
      <x>0</x>
      <y>0</y>
      <width>1260</width>
-     <height>33</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFibre_Diameter_Measurement">

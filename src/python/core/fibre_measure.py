@@ -14,7 +14,10 @@ from skimage.morphology import skeletonize, medial_axis, remove_small_objects
 from skimage import img_as_float # type: ignore
 from skimage.feature import hessian_matrix, hessian_matrix_eigvals
 from scipy.ndimage import distance_transform_edt
-import measure_tool # type: ignore
+try:
+    import measure_tool # type: ignore
+except:
+    pass
 import warnings
 from typing import Tuple
 warnings.filterwarnings('ignore')
