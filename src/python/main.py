@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen
 from PySide6.QtCore import Qt, QSize, QThread, Signal
 from PySide6.QtGui import QIcon, QPixmap
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -160,8 +161,22 @@ class MainWindow(QMainWindow):
     # Canvas
     # ------------------------------------------------------------------
     def _canvaSet(self):
-        self.fig = Figure()
+        # Detect system theme via window background colour
+        palette = self.palette()
+        bg_color = palette.color(palette.ColorRole.Window)
+        is_dark = bg_color.lightness() < 128
+
+        if is_dark:
+            plt.style.use('dark_background')
+            fig_facecolor = '#2b2b2b'
+        else:
+            plt.style.use('default')
+            fig_facecolor = '#f5f5f5'
+
+        self.fig = Figure(facecolor=fig_facecolor)
         self.canvas = FigureCanvas(self.fig)
+        self.canvas.setStyleSheet(f"background-color: {fig_facecolor};")
+
         layout = self.ui.resultFrame.layout()
         if layout is None:
             layout = QVBoxLayout(self.ui.resultFrame)
