@@ -99,6 +99,7 @@ class MainWindow(QMainWindow):
         self.ui.msd_input.setText(str(data["msd"]))
         self.ui.smoothing_input.setText(str(data["smoothing"]))
         self.ui.threshold_input.setText(str(data["threshold"]))
+        self.ui.oer_input.setText(str(data["oer"]))
 
     # ------------------------------------------------------------------
     # Sidebar: validate inputs → write to JSON
@@ -111,6 +112,7 @@ class MainWindow(QMainWindow):
             "msd": (self.ui.msd_input,         int,   5,    500),
             "sigma": (self.ui.smoothing_input,   float, 0.5,  10),
             "threshold": (self.ui.threshold_input,   float, 0.01, 1.0),
+            "oer": (self.ui.oer_input,   float, 1, 500)
         }
 
         data = _load_json("config.json")
@@ -219,6 +221,7 @@ class MainWindow(QMainWindow):
                 sigma=data["sigma"],
                 scale_factor=data["scale_factor"],
                 threshold=data["threshold"],
+                overlap_exclusion_radius=data["oer"]
             )
 
         if mode == "p":
@@ -349,7 +352,11 @@ class AnalysisWorker(QThread):
         self.main_window = main_window
 
     def run(self):
+        import time
+        time1 = time.time()
         result = self.main_window._compute_analysis()
+        time2 = time.time()
+        print(time2 - time1)
         self.resultReady.emit(result)
 
 

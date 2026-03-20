@@ -180,7 +180,7 @@ def local_pca_normal(skeleton: np.ndarray, y: int, x: int, window_size: int = 15
     mean_x = local_coords[:, 1].mean()
     centered = local_coords - np.array([mean_y, mean_x])
     cov_matrix = np.cov(centered.T)
-    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+    _, eigenvectors = np.linalg.eigh(cov_matrix)
     tangent = eigenvectors[:, -1]  # [dy, dx]
 
     normal = np.array([-tangent[1], tangent[0]])
@@ -194,11 +194,12 @@ def local_pca_normal(skeleton: np.ndarray, y: int, x: int, window_size: int = 15
 
 
 
-def measure_edge_pair_distances_final(edge_mask: np.ndarray, 
+def measure_edge_pair_distances_final(edge_mask: np.ndarray,
                                        sample_rate: float = 0.2,
                                        max_search_distance: int = 50,
                                        min_distance_hard: int = 5,
-                                       jer: int = 40) -> Tuple[list, np.ndarray]:
+                                       jer: int = 40,
+                                       overlap_exclusion_radius: int = 20) -> Tuple[list, np.ndarray]:
     '''
     A comprehensive solution for measuring distance between curve pairs.
     The algorithm pipeline:
@@ -223,14 +224,12 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
 
     :param jer: Junction exclusion radius
     :type jer: int
-
-    :param smooth_sigma: Smoothing factor
-    :type smooth_sigma: float
-    
-    :return: 
-        edge_pairs : list of tuples [(coord1, coord2, distance), ...] \n
-        distances : ndarray, paring distances \n
-    :rtype: Tuple[list[Any], ndarray[Any, Any]
+    :param overlap_exclusion_radius: Radius around double-hit points within which single-hit results are discarded
+    :type overlap_exclusion_radius: int
+    :return:
+        edge_pairs : list of tuples [(coord1, coord2, distance), ...]
+        distances  : ndarray of paired distances
+    :rtype: Tuple[list, np.ndarray]
     '''
 
     # Skeleton Extraction and refining
@@ -250,7 +249,7 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
     
     def has_edge_in_4neighbors(y, x):
         h, w = skeleton.shape
-        for dy, dx in [(-1, 0), (1, 0), (0, 0), (0, -1), (0, 1)]:
+        for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             ny, nx = y + dy, x + dx
             if 0 <= ny < h and 0 <= nx < w:
                 if skeleton[ny, nx]:
@@ -258,27 +257,34 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
         return False
     
 
-    # Points iteration sampling
-    edge_pairs = []
+    # --- Main sampling loop ---
+    edge_pairs = []             # single-hit results: (start_coord, paired_coord, dist)
     distances = []
+    contamination_sources = []  # double-hit coords: indicate overlap regions
     h, w = skeleton.shape
+
     for idx in sample_indices:
         y0, x0 = edge_coords[idx]
-        ny, nx = local_pca_normal(skeleton, y0, x0)
-        # ny, nx = normal_y[y0, x0], normal_x[y0, x0]
+        try:
+            # Make sure skeleton: np.ndarray[bool]
+            ny, nx = measure_tool.local_pca_normal(skeleton, y0, x0)
+        except:
+            ny, nx = local_pca_normal(skeleton, y0, x0)
         if abs(ny) < 0.1 and abs(nx) < 0.1:
             continue
+
         candidates = []
 
         for direction in [1, -1]:
             end_y = int(y0 + direction * ny * max_search_distance)
             end_x = int(x0 + direction * nx * max_search_distance)
-            end_y = max(0, min(h-1, end_y))
-            end_x = max(0, min(w-1, end_x))
+            end_y = max(0, min(h - 1, end_y))
+            end_x = max(0, min(w - 1, end_x))
             try:
                 line_points = measure_tool.bresenham_line(y0, x0, end_y, end_x)
             except:
                 line_points = bresenham_line(y0, x0, end_y, end_x)
+
             for i, (py, px) in enumerate(line_points):
                 if i < min_distance_hard:
                     continue
@@ -289,30 +295,34 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
                     if dist > min_distance_hard * np.sqrt(2):
                         candidates.append(((py, px), dist))
                     break
-        
-        # Result filtration
-        # Reject when have two results
+
         if len(candidates) == 0:
             continue
         elif len(candidates) == 1:
             paired_coord, dist = candidates[0]
+            edge_pairs.append(((y0, x0), paired_coord, dist))
+            distances.append(dist)
         else:
-            continue
-        
-        edge_pairs.append(((y0, x0), paired_coord, dist))
-        distances.append(dist)
+            # Double-hit: this point sits on an overlap boundary, mark as contamination source
+            contamination_sources.append((y0, x0))
+
+    # --- Post-hoc overlap contamination filtering ---
+    if contamination_sources and edge_pairs:
+        src = np.array(contamination_sources, dtype=np.float32)           # (M, 2)
+        starts = np.array([p[0] for p in edge_pairs], dtype=np.float32)  # (N, 2)
+
+        # Min distance from each result start point to any contamination source: shape (N,)
+        diff = starts[:, None, :] - src[None, :, :]                      # (N, M, 2)
+        min_dist = np.sqrt((diff ** 2).sum(axis=2)).min(axis=1)           # (N,)
+
+        keep = min_dist > overlap_exclusion_radius
+        edge_pairs = [p for p, k in zip(edge_pairs, keep) if k]
+        distances = [d for d, k in zip(distances, keep) if k]
+
     average_ridge_width = edge_width(edge_mask)
     distances = np.array(distances)
     distances += average_ridge_width
 
-    # plt.figure()
-    # plt.imshow(skeleton, cmap='gray') # type: ignore
-    # show_n = min(1000, len(edge_pairs))
-    # for i in range(0, show_n, 3):
-    #     (y1, x1), (y2, x2), dist = edge_pairs[i]
-    #     color = plt.cm.jet(dist / 50.0) if dist < 50 else (1, 0, 0) # type: ignore
-    #     plt.plot([x1, x2], [y1, y2], color=color, linewidth=1, alpha=0.6)
-    # plt.show()
     return edge_pairs, distances
 
 def result_analyse(diameter_arr: np.ndarray) -> dict:
@@ -351,14 +361,15 @@ def result_analyse(diameter_arr: np.ndarray) -> dict:
 
 
 
-def measure(img_path: str, 
-            sample_rate: float = 0.5, 
-            max_search_distance: int = 50, 
-            min_distance_hard: int= 5, 
-            jer: int = 40, 
-            scale_factor: float = 1.25, 
-            sigma: int = 2, 
-            threshold: float = 0.15) -> Tuple[np.ndarray, list, np.ndarray, dict]:
+def measure(img_path: str,
+            sample_rate: float = 0.5,
+            max_search_distance: int = 50,
+            min_distance_hard: int = 5,
+            jer: int = 40,
+            scale_factor: float = 1.25,
+            sigma: int = 2,
+            threshold: float = 0.15,
+            overlap_exclusion_radius: int = 20) -> Tuple[np.ndarray, list, np.ndarray, dict]:
     '''
     Perform measurement for fibres
     
@@ -390,7 +401,9 @@ def measure(img_path: str,
     :rtype: Tuple[ndarray[Any, Any], list[Any], ndarray[Any, Any]]
     '''
     edge_mask = ridge_enhancement(img_path, sigma, threshold)
-    pairs, distances = measure_edge_pair_distances_final(edge_mask, sample_rate, max_search_distance, min_distance_hard, jer)
+    pairs, distances = measure_edge_pair_distances_final(
+        edge_mask, sample_rate, max_search_distance, min_distance_hard, jer, overlap_exclusion_radius
+    )
     distances *= scale_factor
     fibre_dict = result_analyse(distances)
     return distances, pairs, edge_mask, fibre_dict
