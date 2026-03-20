@@ -125,7 +125,7 @@
     </column>
     <column>
      <property name="text">
-      <string>Variance</string>
+      <string>KDE Peak</string>
      </property>
     </column>
     <column>

@@ -259,7 +259,7 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
         ___qtablewidgetitem1.setText(QCoreApplication.translate("MainWindow", u"Standard Deviation", None));
         ___qtablewidgetitem2 = self.tableWidget.horizontalHeaderItem(2)
-        ___qtablewidgetitem2.setText(QCoreApplication.translate("MainWindow", u"Variance", None));
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("MainWindow", u"KDE Peak", None));
         ___qtablewidgetitem3 = self.tableWidget.horizontalHeaderItem(3)
         ___qtablewidgetitem3.setText(QCoreApplication.translate("MainWindow", u"SEM", None));
         ___qtablewidgetitem4 = self.tableWidget.horizontalHeaderItem(4)
