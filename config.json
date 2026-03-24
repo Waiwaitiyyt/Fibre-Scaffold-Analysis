@@ -1,0 +1,12 @@
+{
+  "img_path": "",
+  "mode": "f",
+  "scale_factor": 1.0,
+  "jer": 30.0,
+  "rate": 0.5,
+  "msd": 20,
+  "smoothing": 2,
+  "threshold": 0.15,
+  "sigma": 2.0,
+  "oer": 10.0
+}
