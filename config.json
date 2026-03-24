@@ -1,12 +1,12 @@
 {
-  "img_path": "E:/CoraMetix/Fibre Diameter Measurement/Some Research/all_sample/M3S15B5S11_10x_centre(2).JPG",
+  "img_path": "",
   "mode": "f",
   "scale_factor": 1.0,
-  "jer": 5.0,
+  "jer": 30.0,
   "rate": 0.5,
   "msd": 20,
   "smoothing": 2,
   "threshold": 0.15,
   "sigma": 2.0,
-  "oer": 20.0
+  "oer": 10.0
 }

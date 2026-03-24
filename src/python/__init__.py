@@ -22,5 +22,5 @@ except ImportError as e:
     print("  Running in pure Python mode. Performance may be slower.")
 
 # 导出常用功能（可选）
-__version__ = "1.0.0"
+__version__ = "0.3.2"
 __all__ = ['measure_tool', '_cpp_available']

@@ -11,5 +11,5 @@ rich>=14.3.3
 scipy>=1.17.1
 seaborn>=0.13.2
 setuptools>=80.9.0
-skimage>=0.0
+scikit-image>=0.0
 tomlkit>=0.14.0
