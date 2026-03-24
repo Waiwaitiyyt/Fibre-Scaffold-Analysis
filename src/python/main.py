@@ -365,15 +365,15 @@ class AnalysisWorker(QThread):
 # ----------------------------------------------------------------------
 def main():
     app = QApplication(sys.argv)
-    splash = QSplashScreen(
-        QPixmap("src/python/media/Splash2.png"),
-        Qt.WindowStaysOnTopHint,  # type: ignore
-    )
-    splash.show()
+    # splash = QSplashScreen(
+    #     QPixmap("src/python/media/Splash2.png"),
+    #     Qt.WindowStaysOnTopHint,  # type: ignore
+    # )
+    # splash.show()
     app.processEvents()
     window = MainWindow()
     window.show()
-    splash.finish(window)
+    # splash.finish(window)
     sys.exit(app.exec())
 
 
