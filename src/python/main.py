@@ -254,9 +254,9 @@ class MainWindow(QMainWindow):
             result_data["Fibre Param"] = fibre_dict
             _save_json("data.json", result_data)
         else:
-            area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict = result
+            area_arr, circularity_arr, solidity_arr, pore_dict, gray_img = result
             pore_result_visualise(
-                area_arr, circularity_arr, solidity_arr, measured_contour, fig=self.fig
+                area_arr, circularity_arr, solidity_arr, gray_img, fig=self.fig
             )
             result_data = _load_json("data.json")
             result_data["Pores Param"] = pore_dict

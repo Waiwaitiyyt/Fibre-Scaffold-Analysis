@@ -58,7 +58,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
 
     return fig
 
-def pore_result_visualise(area_arr: np.ndarray, circularity_arr: np.ndarray, solidity_arr: np.ndarray, measured_contour: np.ndarray, fig: Figure | None = None) -> Figure:
+def pore_result_visualise(area_arr: np.ndarray, circularity_arr: np.ndarray, solidity_arr: np.ndarray, gray_img: np.ndarray, fig: Figure | None = None) -> Figure:
     if fig is None:
         fig = Figure(figsize=(12, 6))
 
@@ -95,7 +95,7 @@ def pore_result_visualise(area_arr: np.ndarray, circularity_arr: np.ndarray, sol
     sns.kdeplot(solidity_arr, color="#7092BE", lw=2, ax=ax_solidity)
 
     # Original image
-    ax_original_img.imshow(measured_contour, cmap = "gray")
+    ax_original_img.imshow(gray_img, cmap="gray")
 
 
     fig.subplots_adjust(

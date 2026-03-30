@@ -13,7 +13,7 @@ if _lib_path.exists():
     
 # 尝试导入C++模块
 try:
-    import measure_tool
+    import measure_tool # type: ignore
     _cpp_available = True
     print(f"✓ C++ acceleration enabled: {measure_tool.__file__}")
 except ImportError as e:

@@ -2,8 +2,10 @@ import numpy as np
 import cv2
 from skimage import img_as_float # type: ignore 
 from skimage.feature import hessian_matrix, hessian_matrix_eigvals
+from skimage.morphology import remove_small_objects
 from scipy.stats import sem, gaussian_kde
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 def ridge_enhancement(img_path: str) -> np.ndarray:
     '''
@@ -24,10 +26,21 @@ def ridge_enhancement(img_path: str) -> np.ndarray:
     eigvals = hessian_matrix_eigvals(H_elems)
     ridge_response = np.abs(eigvals[0])
     norm = (ridge_response - ridge_response.min()) / (np.ptp(ridge_response) + 1e-6)
-    mask = (norm > 0.15).astype(np.uint8) * 255
+    mask = (norm > 0.15)
+    clean_mask = remove_small_objects(mask, max_size = 500).astype(np.uint8) * 255
+    return clean_mask
+
+def contour_isolate(contour: np.ndarray) -> np.ndarray:
+    pts = contour.reshape(-1, 2)           
+    x0, y0 = pts.min(axis=0).astype(int)
+    x1, y1 = pts.max(axis=0).astype(int)
+    h, w = (y1 - y0 + 50), (x1 - x0 + 50)
+    mask = np.zeros((h, w), dtype=np.uint8)
+    normalised = (25 + pts - [x0, y0]).astype(np.int32).reshape(-1, 1, 2)
+    cv2.drawContours(mask, [normalised], -1, 255, 1)
     return mask
 
-def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''
     Extract contours area from contour mask and return the area array 
     
@@ -37,16 +50,14 @@ def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, n
     :rtype: ndarray[Any, Any]
     '''
     contours, _ = cv2.findContours(contour_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    canva = np.zeros_like(contour_mask)
-    cv2.drawContours(canva, contours, -1, (255, 255, 255), 1)
-    cv2.cvtColor(canva, cv2.COLOR_GRAY2BGR)
-
-
 
     area_list = []
     circularity_list = []
     solidity_list = []
     for contour in contours:
+        # contour_mask = contour_isolate(contour)
+        # cv2.imshow('a', contour_mask)
+        # cv2.waitKey(0)
         area = cv2.contourArea(contour)
         perimeter = cv2.arcLength(contour, True)
         if perimeter > 0:
@@ -59,15 +70,21 @@ def measure_contour(contour_mask: np.ndarray) -> Tuple[np.ndarray, np.ndarray, n
         area_list.append(area)
         circularity_list.append(circularity)
         solidity_list.append(solidity)
-        cv2.drawContours(canva, [contour], -1, (0, 0, 255), 2)
-    area_arr = np.asarray(sorted([area for area in area_list if area < 1])[:-5]).ravel()
-    circularity_arr = np.asarray(sorted(circularity_list)[:-1]).ravel()
-    solidity_arr = np.asarray(sorted(solidity_list)[:-1]).ravel()
+    # area_arr = np.asarray(sorted([area for area in area_list if area < 1])[:-5]).ravel()
+    # circularity_arr = np.asarray(sorted(circularity_list)[:-1]).ravel()
+    # solidity_arr = np.asarray(sorted(solidity_list)[:-1]).ravel()
+    area_arr = np.asarray(sorted(area_list)[:-1])
+    circularity_arr = np.asarray(circularity_list)
+    solidity_arr = np.asarray(solidity_list)
 
-    cv2.imshow('a', canva)
-    cv2.waitKey(0)
+    q_low = np.percentile(area_arr, 25)
+    q_high = np.percentile(area_arr, 75)
+    IQR = q_high - q_low
+    lower_bound = q_low - 1.5 * IQR
+    upper_bound = q_high + 1.5 * IQR
+    valid_area_arr = area_arr[(area_arr >= lower_bound) & (area_arr <= upper_bound)]
 
-    return area_arr, circularity_arr, solidity_arr, canva
+    return valid_area_arr, circularity_arr, solidity_arr
     
 
 
@@ -106,7 +123,7 @@ def result_analyse(area_arr: np.ndarray) -> dict:
     return pore_dict
 
 
-def measure(img_path: str, scale_factor: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+def measure(img_path: str, scale_factor: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict, np.ndarray]:
     '''
     Perform measurement for pores
     
@@ -116,11 +133,13 @@ def measure(img_path: str, scale_factor: float) -> Tuple[np.ndarray, np.ndarray,
     :rtype: Tuple[ndarray[Any, Any], ndarray[Any, Any], ndarray[Any, Any], str]
     '''
     contour_mask = ridge_enhancement(img_path)
-    area_arr_pixel, circularity_arr, solidity_arr, measured_contour = measure_contour(contour_mask)
+    gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    area_arr_pixel, circularity_arr, solidity_arr = measure_contour(contour_mask)
     area_arr = area_arr_pixel * (scale_factor ** 2)
     pore_dict = result_analyse(area_arr)
-    return area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict
+    return area_arr, circularity_arr, solidity_arr, pore_dict, gray_img # type: ignore
 
 if __name__ == "__main__":
-    img_path = r"E:\CoraMetix\Fibre Diameter Measurement\sample\11.02.02_10x(centre).JPG"
-    area_arr, circularity_arr, solidity_arr, measured_contour, pore_dict = measure(img_path, scale_factor=1.25)
+    img_path = r"E:\CoraMetix\Fibre Diameter Measurement\sample\12.03.02_4x(3).JPG"
+    area_arr, circularity_arr, solidity_arr, pore_dict, gray_img = measure(img_path, scale_factor=1.25)
+    print(area_arr, len(area_arr))
