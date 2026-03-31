@@ -1,0 +1,11 @@
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "measure_tool"
+version = "1.0.0"
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+wheel.packages = []  # 纯 C++ 扩展，没有 Python 包目录

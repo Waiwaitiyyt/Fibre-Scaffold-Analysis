@@ -26,3 +26,7 @@ design/
 
 !lib/.gitkeep
 
+# Build
+run/
+run.spec
+

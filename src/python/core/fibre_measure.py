@@ -265,11 +265,13 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
 
     for idx in sample_indices:
         y0, x0 = edge_coords[idx]
+
         try:
             # Make sure skeleton: np.ndarray[bool]
             ny, nx = measure_tool.local_pca_normal(skeleton, y0, x0)
         except:
             ny, nx = local_pca_normal(skeleton, y0, x0)
+            
         if abs(ny) < 0.1 and abs(nx) < 0.1:
             continue
 
@@ -280,6 +282,7 @@ def measure_edge_pair_distances_final(edge_mask: np.ndarray,
             end_x = int(x0 + direction * nx * max_search_distance)
             end_y = max(0, min(h - 1, end_y))
             end_x = max(0, min(w - 1, end_x))
+
             try:
                 line_points = measure_tool.bresenham_line(y0, x0, end_y, end_x)
             except:

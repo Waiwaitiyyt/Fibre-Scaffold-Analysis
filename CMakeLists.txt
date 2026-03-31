@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(FiberAnalyzer VERSION 1.0.0 LANGUAGES CXX)
 
-# C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -12,15 +11,15 @@ endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Project directory: ${CMAKE_SOURCE_DIR}")
 
-find_package(Python 3.11 COMPONENTS Interpreter Development REQUIRED)
+# 去掉固定的 3.11，让调用方决定 Python 版本
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
 message(STATUS "Found Python: ${Python_VERSION}")
 message(STATUS "Python include: ${Python_INCLUDE_DIRS}")
 
-# Add pybind11
 add_subdirectory(src/cpp/extern/pybind11)
 message(STATUS "Using bundled pybind11")
 
-# Assign output directory
+# 本地开发时仍输出到 lib/，wheel 构建时 scikit-build-core 会覆盖这个
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 
@@ -44,40 +43,30 @@ endforeach()
 
 pybind11_add_module(measure_tool ${SOURCES})
 
-# ============================================
-# Optimisation
-# ============================================
-
 if(MSVC)
-    # Windows: Visual Studio / MSVC
     target_compile_options(measure_tool PRIVATE
-        /O2         
-        /W3           
-        /utf-8              
-        /bigobj          
+        /O2 /W3 /utf-8 /bigobj
     )
     target_compile_definitions(measure_tool PRIVATE
         _CRT_SECURE_NO_WARNINGS
         _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
     )
 else()
-    # Linux / macOS: GCC / Clang
     target_compile_options(measure_tool PRIVATE
-        -O3                
-        -Wall              
-        -Wextra            
-        -march=native      
+        -O3 -Wall -Wextra
+        # 去掉 -march=native，CI 环境 CPU 架构不固定，会导致非法指令
     )
 endif()
 
 # ============================================
-# Print info
+# 关键：告诉 scikit-build-core 把 .pyd/.so 装到 wheel 根目录
 # ============================================
+install(TARGETS measure_tool DESTINATION .)
 
 message(STATUS "")
 message(STATUS "===========================================")
 message(STATUS "Configuration Summary:")
-message(STATUS "  Module name: measure_tool")  
+message(STATUS "  Module name: measure_tool")
 message(STATUS "  Output directory: ${CMAKE_SOURCE_DIR}/lib")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Python: ${Python_VERSION}")
