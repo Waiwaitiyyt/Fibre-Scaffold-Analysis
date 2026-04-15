@@ -6,12 +6,12 @@ Author: waiwaiti
 Date: 2026-02-08
 
 """
-import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 from scipy.stats import sem, gaussian_kde
 from skimage.morphology import skeletonize, medial_axis, remove_small_objects
-from skimage import img_as_float # type: ignore
+from skimage import img_as_float, exposure # type: ignore
 from skimage.feature import hessian_matrix, hessian_matrix_eigvals
 from scipy.ndimage import distance_transform_edt
 try:
@@ -36,10 +36,12 @@ def ridge_enhancement(img_path: str, sigma: int = 2, threshold: float = 0.15) ->
     :rtype: ndarray[Any, Any]
     '''
     # Apply adaptive thresholds
-    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-    clahe = cv2.createCLAHE(clipLimit=10.0, tileGridSize=(8, 8))
-    img = clahe.apply(img) # type: ignore
-    img_float = img_as_float(img)
+    # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    # clahe = cv2.createCLAHE(clipLimit=10.0, tileGridSize=(8, 8))
+    # img_t = clahe.apply(img) # type: ignore
+    img = np.array(Image.open(img_path).convert("L"))
+    clahe_img = exposure.equalize_adapthist(img, kernel_size=(8, 8), clip_limit=0.03)
+    img_float = img_as_float(clahe_img)
     # Enhance ridge features 
     H_elems = hessian_matrix(img_float, sigma=sigma, order='rc', use_gaussian_derivatives=False)
     eigvals = hessian_matrix_eigvals(H_elems)
@@ -413,11 +415,12 @@ def measure(img_path: str,
 
 
 if __name__ == "__main__":
-    img_path = r"C:\Users\EnDes\Desktop\Untitled.png"
+    img_path = r"E:\CoraMetix\Fibre Diameter Measurement\Some Research\all_sample\02.03.02_10x_centre.JPG"
     distances, pairs, edge_mask, fibre_dict = measure(img_path, jer = 50)
     print(np.mean(distances))
 
-    gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img = Image.open(img_path)
+    gray_img = img.convert("L")
 
 
     plt.figure()

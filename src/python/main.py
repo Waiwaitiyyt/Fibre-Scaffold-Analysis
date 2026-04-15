@@ -356,7 +356,7 @@ class AnalysisWorker(QThread):
         time1 = time.time()
         result = self.main_window._compute_analysis()
         time2 = time.time()
-        print(time2 - time1)
+        print("time:" + str(time2 - time1))
         self.resultReady.emit(result)
 
 

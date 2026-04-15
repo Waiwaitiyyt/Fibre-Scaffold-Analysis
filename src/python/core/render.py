@@ -1,5 +1,5 @@
 import numpy as np
-import cv2
+from PIL import Image
 import seaborn as sns
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
     axes = fig.subplots(2, 3)
 
     ax_hist, ax_kde, ax_box = axes[0]
-    ax_gray_img, ax_mask, ax_refinedContours = axes[1]
+    ax_gray_img, ax_mask, ax_binary = axes[1]
 
     # Titles
     ax_hist.set_title("Diameter Histogram")
@@ -19,7 +19,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
     ax_box.set_title("Boxplot")
     ax_gray_img.set_title("Grayscale Image")
     ax_mask.set_title("Skeleton and Measurement Sites")
-    ax_refinedContours.set_title("Binary Mask")
+    ax_binary.set_title("Binary Mask")
 
     # Labels
     ax_hist.set_xlabel("Fibre Diameter (µm)")
@@ -27,7 +27,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
     ax_box.set_xlabel("Fibre Diameter (µm)")
 
     # Image axes
-    for ax in (ax_gray_img, ax_mask, ax_refinedContours):
+    for ax in (ax_gray_img, ax_mask, ax_binary):
         ax.axis("off")
 
     # Plots
@@ -36,7 +36,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
     sns.kdeplot(diameter_arr, color="#7092BE", lw=2, ax=ax_kde)
     sns.boxplot(x=diameter_arr, ax=ax_box)
 
-    gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    gray_img = Image.open(img_path).convert("L")
     ax_gray_img.imshow(gray_img, cmap = "gray")
     ax_mask.imshow(gray_img, cmap='gray')
     show_n = min(1000, len(pairs))
@@ -45,7 +45,7 @@ def fibre_result_visualise(diameter_arr: np.ndarray, img_path: str, pairs: list,
         # color = ax_mask.cm.jet(dist / 50.0) if dist < 50 else (1, 0, 0)
         ax_mask.plot([x1, x2], [y1, y2], color='red', linewidth=1, alpha=0.6)
 
-    ax_refinedContours.imshow(cv2.cvtColor(edge_mask, cv2.COLOR_BGR2RGB))
+    ax_binary.imshow(edge_mask, cmap="gray")
 
     fig.subplots_adjust(
         left=0.05,
@@ -111,7 +111,7 @@ def pore_result_visualise(area_arr: np.ndarray, circularity_arr: np.ndarray, sol
 
 def save_measurement_overlay(img_path: str, pairs: list, save_path: str) -> None:
     """Save the grayscale image with measurement lines as a standalone file."""
-    gray_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    gray_img = Image.open(img_path).convert("L")
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.imshow(gray_img, cmap='gray') # type: ignore
     ax.axis('off')
