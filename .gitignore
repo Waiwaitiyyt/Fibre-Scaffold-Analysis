@@ -30,3 +30,6 @@ design/
 run/
 run.spec
 *.zip
+
+# Sample
+sample/
