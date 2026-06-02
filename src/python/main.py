@@ -4,7 +4,7 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTableWidgetItem, QSplashScreen, QFileDialog
 from PySide6.QtCore import Qt, QSize, QThread, Signal
 from PySide6.QtGui import QIcon, QPixmap
 import matplotlib.pyplot as plt
@@ -303,8 +303,15 @@ class MainWindow(QMainWindow):
         config = _load_json("config.json")
         mode_key = "Fibre Param" if config["mode"] == "f" else "Pores Param"
 
+        last_dir = config.get("output_dir", str(Path.home()))
+        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory", last_dir)
+        if not output_dir:
+            return
+        config["output_dir"] = output_dir
+        _save_json("config.json", config)
+
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        folder = Path(timestamp)
+        folder = Path(output_dir) / timestamp
         folder.mkdir(exist_ok=True)
 
         # Save result image

@@ -1,10 +1,10 @@
 {
-  "img_path": "",
-  "mode": "p",
+  "img_path": "/home/waiwaiti/codes/corametix/scaffold_analysis/sample/01.04.03_10x_centre.JPG",
+  "mode": "f",
   "scale_factor": 1.0,
   "jer": 30.0,
   "rate": 0.5,
-  "msd": 20,
+  "msd": 50,
   "smoothing": 2,
   "threshold": 0.15,
   "sigma": 2.0,
