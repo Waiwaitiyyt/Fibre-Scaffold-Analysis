@@ -342,35 +342,23 @@ class MainWindow(QMainWindow):
         AboutDialog(parent=self).exec()
 
     def _closeWindow(self):
-        # Restore config.json
+        self.close()
+
+    def closeEvent(self, event):
         config = _load_json("config.json")
         config["img_path"] = ""
         _save_json("config.json", config)
 
-        # Restore data.json
+        empty = {
+            "Average": 0, "Standard Deviation": 0, "KDE Peak": 0, "SEM": 0,
+            "median": 0, "Q1, Q3": [], "IQR": 0, "95% CI": [], "Raw": [],
+        }
         data = _load_json("data.json")
-        data["Fibre Param"]["Average"] = 0
-        data["Fibre Param"]["Standard Deviation"] = 0
-        data["Fibre Param"]["KDE Peak"] = 0
-        data["Fibre Param"]["SEM"] = 0
-        data["Fibre Param"]["median"] = 0
-        data["Fibre Param"]["Q1, Q3"] = []
-        data["Fibre Param"]["IQR"] = 0
-        data["Fibre Param"]["95% CI"] = []
-        data["Fibre Param"]["Raw"] = []
-
-        data["Pores Param"]["Average"] = 0
-        data["Pores Param"]["Standard Deviation"] = 0
-        data["Pores Param"]["KDE Peak"] = 0
-        data["Pores Param"]["SEM"] = 0
-        data["Pores Param"]["median"] = 0
-        data["Pores Param"]["Q1, Q3"] = []
-        data["Pores Param"]["IQR"] = 0
-        data["Pores Param"]["95% CI"] = []
-        data["Pores Param"]["Raw"] = []
+        for section in ("Fibre Param", "Pores Param"):
+            data[section].update(empty)
         _save_json("data.json", data)
-        
-        QApplication.quit()
+
+        event.accept()
 
 
 # ----------------------------------------------------------------------
