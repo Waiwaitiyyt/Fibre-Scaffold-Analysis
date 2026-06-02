@@ -342,9 +342,34 @@ class MainWindow(QMainWindow):
         AboutDialog(parent=self).exec()
 
     def _closeWindow(self):
-        data = _load_json("config.json")
-        data["img_path"] = ""
-        _save_json("config.json", data)
+        # Restore config.json
+        config = _load_json("config.json")
+        config["img_path"] = ""
+        _save_json("config.json", config)
+
+        # Restore data.json
+        data = _load_json("data.json")
+        data["Fibre Param"]["Average"] = 0
+        data["Fibre Param"]["Standard Deviation"] = 0
+        data["Fibre Param"]["KDE Peak"] = 0
+        data["Fibre Param"]["SEM"] = 0
+        data["Fibre Param"]["median"] = 0
+        data["Fibre Param"]["Q1, Q3"] = []
+        data["Fibre Param"]["IQR"] = 0
+        data["Fibre Param"]["95% CI"] = []
+        data["Fibre Param"]["Raw"] = []
+
+        data["Pores Param"]["Average"] = 0
+        data["Pores Param"]["Standard Deviation"] = 0
+        data["Pores Param"]["KDE Peak"] = 0
+        data["Pores Param"]["SEM"] = 0
+        data["Pores Param"]["median"] = 0
+        data["Pores Param"]["Q1, Q3"] = []
+        data["Pores Param"]["IQR"] = 0
+        data["Pores Param"]["95% CI"] = []
+        data["Pores Param"]["Raw"] = []
+        _save_json("data.json", data)
+        
         QApplication.quit()
 
 

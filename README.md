@@ -112,10 +112,12 @@ No image path has been stored in `config.json`. Open an image first via **File â
 - **MSD too small**: increase MSD so the search ray can reach the opposite fibre edge.  
 - **Image contrast**: the pipeline applies adaptive histogram equalisation (CLAHE), but very low-contrast or overexposed images may still fail to produce a clear ridge mask.
 
-**Results are noisy / many outliers in the diameter distribution**  
+**Results are noisy / many outliers / few results in measurement?**  
 - Increase **JER** to mask more of the junction regions.  
 - Increase **OER** to suppress measurements near fibre overlaps.  
 - Reduce **Rate** to lower statistical noise from borderline skeleton points.
+- Reduce **JER** if the scaffold is too dense.
+- Increase **OER** if too many measurements are at overlapping site.
 
 **`config.json` is missing keys on startup**  
 The application automatically back-fills missing keys with default values from the `DEFAULTS` dictionary in `main.py`. If the file is corrupt, delete it and restart â€” a fresh one will be generated on next save.
